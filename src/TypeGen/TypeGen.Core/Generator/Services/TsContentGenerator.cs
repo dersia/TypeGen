@@ -4,13 +4,15 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Newtonsoft.Json;
 using TypeGen.Core.Extensions;
 using TypeGen.Core.Logging;
 using TypeGen.Core.Metadata;
 using TypeGen.Core.TypeAnnotations;
 using TypeGen.Core.Utils;
 using TypeGen.Core.Validation;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using System.Text.Json.Serialization;
 
 namespace TypeGen.Core.Generator.Services
 {
@@ -26,7 +28,7 @@ namespace TypeGen.Core.Generator.Services
         private readonly IMetadataReaderFactory _metadataReaderFactory;
         private readonly IGeneratorOptionsProvider _generatorOptionsProvider;
         private readonly ILogger _logger;
-        private readonly JsonSerializerSettings _jsonSerializerSettings;
+        private readonly JsonSerializerOptions _jsonSerializerOptions;
 
         private const string KeepTsTagName = "keep-ts";
         private const string CustomHeadTagName = "custom-head";
@@ -50,9 +52,36 @@ namespace TypeGen.Core.Generator.Services
             _generatorOptionsProvider = generatorOptionsProvider;
             _logger = logger;
 
-            _jsonSerializerSettings = new JsonSerializerSettings
+            _jsonSerializerOptions = new JsonSerializerOptions
             {
-                ContractResolver = new TsJsonContractResolver(_metadataReaderFactory, GeneratorOptions)
+                AllowTrailingCommas = true,
+                Converters =
+                {
+                    new JsonStringEnumConverter(namingPolicy: JsonNamingPolicy.CamelCase)
+                },
+                DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString,
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                TypeInfoResolver = new DefaultJsonTypeInfoResolver
+                {
+                    Modifiers =
+                    {
+                        (typeInfo) => 
+                        {
+                            typeInfo.Properties.Clear();
+                            foreach(var memberInfo in typeInfo.Type
+                                .GetTsExportableMembers(_metadataReaderFactory.GetInstance()))
+                            {
+                                var memberNameAttribute = _metadataReaderFactory.GetInstance().GetAttribute<TsMemberNameAttribute>(memberInfo);
+                                var propertyName = memberNameAttribute?.Name ?? GeneratorOptions.PropertyNameConverters.Convert(memberInfo.Name, memberInfo);
+                                typeInfo.Properties.Add(
+                                    typeInfo.CreateJsonPropertyInfo(memberInfo.GetType(), propertyName)
+                                );
+                            }
+                        }
+                    }
+                }
             };
         }
 
@@ -400,7 +429,7 @@ namespace TypeGen.Core.Generator.Services
                     case DateTimeOffset valueDateTimeOffset when memberType == "string":
                         return quote + valueDateTimeOffset.ToString("o", CultureInfo.InvariantCulture) + quote;
                     default:
-                        return JsonConvert.SerializeObject(valueObj, _jsonSerializerSettings).Replace("\"", quote);
+                        return JsonSerializer.Serialize(valueObj, _jsonSerializerOptions).Replace("\"", quote);
                 }
             }
             catch (MissingMethodException e)

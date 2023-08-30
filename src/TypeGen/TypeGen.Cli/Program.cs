@@ -90,6 +90,7 @@ namespace TypeGen.Cli
                         {
                             configure.IncludeBaseClassWhenExportedAsInterface = includeBaseClassForInterfaces;
                         }
+                        configure.CsNullableTranslation = "optional";
                     });
                 }
                 
@@ -127,7 +128,7 @@ namespace TypeGen.Cli
                 : Path.Combine(projectFolder, "tgconfig.json");
 
             TgConfig config = _configProvider.GetConfig(configPath, projectFolder);
-
+            
             configure(config);
 
             // register assembly resolver

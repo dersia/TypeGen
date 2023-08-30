@@ -11,31 +11,36 @@ namespace TypeGen.Core.TypeModel.Conversion;
 
 internal class ReflectionToCsModelConverter
 {
-    public static CsType ConvertType(Type type)
+    public static CsType ConvertType(MemberInfo memberInfo)
     {
-        Requires.NotNull(type, nameof(type));
+        Requires.NotNull(memberInfo, nameof(memberInfo));
 
-        if (type.IsNullable())
-            return ConvertTypePrivate(Nullable.GetUnderlyingType(type)!, true);
-        else
-            return ConvertTypePrivate(type, false);
+        var nullability = memberInfo.IsNullable();
+        Requires.NotNull(nullability, nameof(nullability));
+
+        return ConvertTypePrivate(nullability!);
     }
 
-    private static CsType ConvertTypePrivate(Type type, bool isNullable)
-        => type switch
+    private static CsType ConvertTypePrivate(NullabilityInfo nullabilityInfo)
+        => nullabilityInfo.Type switch
         {
-            { IsGenericParameter: true } => ConvertGenericParameter(type),
-            { IsPrimitive: true } => ConvertPrimitive(type, isNullable),
-            { IsEnum: true } => ConvertEnum(type, isNullable),
-            { IsClass: true } => ConvertClass(type, isNullable),
-            { IsInterface: true } => ConvertInterface(type, isNullable),
-            not null when type.IsStruct() =>  ConvertStruct(type, isNullable),
-            _ => throw new ArgumentException($"Type '{type!.FullName}' is not supported. Only classes, interfaces, structs, enums and generic parameters can be translated to TypeScript.")
+            { IsPrimitive: true } => ConvertPrimitive(nullabilityInfo.Type, nullabilityInfo.ReadState == NullabilityState.Nullable),
+            { IsEnum: true } => ConvertEnum(nullabilityInfo.Type, nullabilityInfo.ReadState == NullabilityState.Nullable),
+            { IsClass: true } => ConvertClass(nullabilityInfo),
+            { IsInterface: true } => ConvertInterface(nullabilityInfo),
+            not null when nullabilityInfo.Type.Name.StartsWith("Nullable") => ConvertPrimitive(nullabilityInfo.Type.GenericTypeArguments[0], nullabilityInfo.ReadState == NullabilityState.Nullable),
+            not null when nullabilityInfo.Type.IsStruct() =>  ConvertStruct(nullabilityInfo),
+            _ => throw new ArgumentException($"Type '{nullabilityInfo.Type!.FullName}' is not supported. Only classes, interfaces, structs, enums and generic parameters can be translated to TypeScript.")
         };
 
-    private static CsGenericParameter ConvertGenericParameter(Type type)
+    private static CsGenericParameter ConvertGenericParameter(NullabilityInfo nullabilityInfo)
     {
-        return new CsGenericParameter(type.Name);
+        var typeName = nullabilityInfo.Type.Name;
+        if (typeName.StartsWith("Nullable") && nullabilityInfo.Type.GenericTypeArguments?.Length > 0)
+        {
+            typeName = nullabilityInfo.Type.GenericTypeArguments[0].Name;
+        }
+        return new CsGenericParameter(typeName, nullabilityInfo.ReadState == NullabilityState.Nullable);
     }
     
     private static CsPrimitive ConvertPrimitive(Type type, bool isNullable)
@@ -51,18 +56,18 @@ internal class ReflectionToCsModelConverter
         return new CsEnum(type.FullName, type.Name, tgAttributes, values, isNullable);
     }
 
-    private static CsGpType ConvertClass(Type type, bool isNullable)
+    private static CsGpType ConvertClass(NullabilityInfo nullabilityInfo)
     {
-        var genericTypes = GetGenericTypes(type);
-        var @base = GetBase(type);
-        var implementedInterfaces = GetImplementedInterfaces(type);
-        var tgAttributes = GetTgAttributes(type);
-        var fields = GetFields(type);
-        var properties = GetProperties(type);
+        var genericTypes = GetGenericTypes(nullabilityInfo);
+        var @base = GetBase(nullabilityInfo.Type);
+        var implementedInterfaces = GetImplementedInterfaces(nullabilityInfo.Type);
+        var tgAttributes = GetTgAttributes(nullabilityInfo.Type);
+        var fields = GetFields(nullabilityInfo.Type);
+        var properties = GetProperties(nullabilityInfo.Type);
 
-        return CsGpType.Class(type.FullName!,
-            type.Name,
-            isNullable,
+        return CsGpType.Class(nullabilityInfo.Type.FullName!,
+            nullabilityInfo.Type.Name,
+            nullabilityInfo.ReadState == NullabilityState.Nullable,
             genericTypes,
             @base,
             implementedInterfaces,
@@ -71,32 +76,32 @@ internal class ReflectionToCsModelConverter
             tgAttributes);
     }
 
-    private static CsGpType ConvertInterface(Type type, bool isNullable)
+    private static CsGpType ConvertInterface(NullabilityInfo nullabilityInfo)
     {
-        var genericTypes = GetGenericTypes(type);
-        var @base = GetBase(type);
-        var tgAttributes = GetTgAttributes(type);
-        var properties = GetProperties(type);
+        var genericTypes = GetGenericTypes(nullabilityInfo);
+        var @base = GetBase(nullabilityInfo.Type);
+        var tgAttributes = GetTgAttributes(nullabilityInfo.Type);
+        var properties = GetProperties(nullabilityInfo.Type);
 
-        return CsGpType.Interface(type.FullName!,
-            type.Name,
-            isNullable,
+        return CsGpType.Interface(nullabilityInfo.Type.FullName!,
+            nullabilityInfo.Type.Name,
+            nullabilityInfo.ReadState == NullabilityState.Nullable,
             genericTypes,
             @base,
             properties,
             tgAttributes);
     }
     
-    private static CsGpType ConvertStruct(Type type, bool isNullable)
+    private static CsGpType ConvertStruct(NullabilityInfo nullabilityInfo)
     {
-        var genericTypes = GetGenericTypes(type);
-        var tgAttributes = GetTgAttributes(type);
-        var fields = GetFields(type);
-        var properties = GetProperties(type);
+        var genericTypes = GetGenericTypes(nullabilityInfo);
+        var tgAttributes = GetTgAttributes(nullabilityInfo.Type);
+        var fields = GetFields(nullabilityInfo.Type);
+        var properties = GetProperties(nullabilityInfo.Type);
 
-        return CsGpType.Struct(type.FullName!,
-            type.Name,
-            isNullable,
+        return CsGpType.Struct(nullabilityInfo.Type.FullName!,
+            nullabilityInfo.Type.Name,
+            nullabilityInfo.ReadState == NullabilityState.Nullable,
             genericTypes,
             fields,
             properties,
@@ -115,12 +120,10 @@ internal class ReflectionToCsModelConverter
             .ToList();
     }
 
-    private static IReadOnlyCollection<CsType> GetGenericTypes(Type type)
+    private static IReadOnlyCollection<CsType> GetGenericTypes(NullabilityInfo nullabilityInfo)
     {
-        var reflectionGenericTypes = type.IsGenericTypeDefinition
-            ? type.GetTypeInfo().GenericTypeParameters
-            : type.GenericTypeArguments;
-        return reflectionGenericTypes.Select(ConvertType).ToList();
+        var genericTypes = nullabilityInfo.GetGenericArguments();
+        return genericTypes.Select(ConvertGenericParameter).ToList();
     }
 
     private static CsGpType? GetBase(Type type)
@@ -139,7 +142,7 @@ internal class ReflectionToCsModelConverter
         => type.GetProperties()
             .Select(propertyInfo =>
             {
-                var propertyType = ConvertType(propertyInfo.PropertyType);
+                var propertyType = ConvertType(propertyInfo);
                 var name = propertyInfo.Name;
                 var defaultValue = propertyInfo.GetValue(null);
                 return new CsProperty(propertyType, name, defaultValue);
@@ -151,7 +154,7 @@ internal class ReflectionToCsModelConverter
         return type.GetFields()
             .Select(fieldInfo =>
             {
-                var fieldType = ConvertType(fieldInfo.FieldType);
+                var fieldType = ConvertType(fieldInfo);
                 var name = fieldInfo.Name;
                 var defaultValue = fieldInfo.GetValue(null);
                 return new CsField(fieldType, name, defaultValue);

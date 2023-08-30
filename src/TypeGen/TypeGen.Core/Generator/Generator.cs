@@ -546,8 +546,8 @@ namespace TypeGen.Core.Generator
 
             var tsDoc = GetTsDocForMember(type, memberInfo);
             bool isOptional = _metadataReaderFactory.GetInstance().GetAttribute<TsOptionalAttribute>(memberInfo) != null;
-            var isNullable = memberInfo.IsNullable();
-            if (isNullable && Options.CsNullableTranslation == StrictNullTypeUnionFlags.Optional)
+            var returnTypeNullability = memberInfo.IsNullable();
+            if (returnTypeNullability.ReadState == NullabilityState.Nullable && Options.CsNullableTranslation == StrictNullTypeUnionFlags.Optional)
             {
                 isOptional = true;
             }
@@ -637,8 +637,8 @@ namespace TypeGen.Core.Generator
 
             var tsDoc = GetTsDocForMember(type, memberInfo);
             bool isOptional = _metadataReaderFactory.GetInstance().GetAttribute<TsOptionalAttribute>(memberInfo) != null;
-            var isNullable = memberInfo.IsNullable();
-            if (isNullable && Options.CsNullableTranslation == StrictNullTypeUnionFlags.Optional)
+            var returnTypeNullability = memberInfo.IsNullable();
+            if (returnTypeNullability.ReadState == NullabilityState.Nullable && Options.CsNullableTranslation == StrictNullTypeUnionFlags.Optional)
             {
                 isOptional = true;
             }

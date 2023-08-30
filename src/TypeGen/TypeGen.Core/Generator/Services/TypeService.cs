@@ -324,9 +324,9 @@ namespace TypeGen.Core.Generator.Services
                     result.AddRange(GeneratorOptions.TypeUnionsForTypes[tsTypeName]);
                 }
 
-                var nullable = memberInfo.IsNullable();
+                var returnTypeNullability = memberInfo.IsNullable();
 
-                if ((nullable && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.None && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.Optional) ||
+                if ((returnTypeNullability.ReadState == NullabilityState.Nullable && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.None && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.Optional) ||
                     GeneratorOptions.CsAllowNullsForAllTypes)
                 {
                     if (GeneratorOptions.CsNullableTranslation.HasFlag(StrictNullTypeUnionFlags.Null)) result.Add(nullLiteral);

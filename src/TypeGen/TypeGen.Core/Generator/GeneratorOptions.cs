@@ -16,8 +16,8 @@ namespace TypeGen.Core.Generator
         public static TypeNameConverterCollection DefaultFileNameConverters => new TypeNameConverterCollection(new PascalCaseToKebabCaseConverter());
         public static TypeNameConverterCollection DefaultTypeNameConverters => new TypeNameConverterCollection();
         public static MemberNameConverterCollection DefaultPropertyNameConverters => new MemberNameConverterCollection(new PascalCaseToCamelCaseConverter());
-        public static MemberNameConverterCollection DefaultEnumValueNameConverters => new MemberNameConverterCollection();
-        public static MemberNameConverterCollection DefaultEnumStringInitializersConverters => new MemberNameConverterCollection();
+        public static MemberNameConverterCollection DefaultEnumValueNameConverters => new MemberNameConverterCollection(new PascalCaseToCamelCaseConverter());
+        public static MemberNameConverterCollection DefaultEnumStringInitializersConverters => new MemberNameConverterCollection(new PascalCaseToCamelCaseConverter());
         public static string DefaultTypeScriptFileExtension => "ts";
         public static bool DefaultSingleQuotes => false;
         public static bool DefaultCreateIndexFile => false;

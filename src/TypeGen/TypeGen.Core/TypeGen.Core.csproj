@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net7.0</TargetFrameworks>
+    <TargetFramework>net7.0</TargetFramework>
     <DocumentationFile>TypeGen.Core.xml</DocumentationFile>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
@@ -8,7 +8,7 @@
     <None Remove="Templates\Class.tpl" />
     <None Remove="Templates\ClassProperty.tpl" />
     <None Remove="Templates\ClassPropertyWithDefaultValue.tpl" />
-    <None Remove="Templates\Constant.tpl" />
+    <None Remove="Templates\ConstaSnt.tpl" />
     <None Remove="Templates\Enum.tpl" />
     <None Remove="Templates\EnumUnionType.tpl" />
     <None Remove="Templates\EnumUnionTypeDefaultExport.tpl" />
@@ -38,11 +38,5 @@
     <EmbeddedResource Include="Templates\InterfaceProperty.tpl" />
     <EmbeddedResource Include="Templates\Index.tpl" />
     <EmbeddedResource Include="Templates\IndexExport.tpl" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Namotion.Reflection" Version="2.1.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
-    <PackageReference Include="System.Dynamic.Runtime" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
   </ItemGroup>
 </Project>

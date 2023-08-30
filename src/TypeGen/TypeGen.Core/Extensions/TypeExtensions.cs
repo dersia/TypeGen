@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Namotion.Reflection;
 using TypeGen.Core.Metadata;
 using TypeGen.Core.TypeAnnotations;
 using TypeGen.Core.Validation;
@@ -96,30 +95,54 @@ namespace TypeGen.Core.Extensions
             return false;
         }
 
-        /// <summary>
-        /// Checks if a property or field is nullable
-        /// </summary>
-        /// <param name="memberInfo"></param>
-        /// <returns></returns>
-        public static bool IsNullable(this MemberInfo memberInfo)
+        public static NullabilityInfo? IsNullable(this MemberInfo memberInfo)
         {
-            Requires.NotNull(memberInfo, nameof(memberInfo));
-            
-            var contextualMember = memberInfo.ToContextualAccessor();
-            return contextualMember.Nullability == Nullability.Nullable;
+            if (memberInfo is null)
+            {
+                return null;
+            }
+            if(memberInfo.MemberType == MemberTypes.Property)
+            {
+                return ((PropertyInfo)memberInfo).IsNullable();
+            }
+            if (memberInfo.MemberType == MemberTypes.Field)
+            {
+                return ((FieldInfo)memberInfo).IsNullable();
+            }
+
+            return null;
         }
-        
-        /// <summary>
-        /// Checks if a property or field is nullable
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        public static bool IsNullable(this Type type)
+
+        public static NullabilityInfo? IsNullable(this PropertyInfo propertyInfo)
         {
-            Requires.NotNull(type, nameof(type));
-            return Nullable.GetUnderlyingType(type) != null;
+            if (propertyInfo is null)
+            {
+                return null;
+            }
+            var context = new NullabilityInfoContext();
+            return context.Create(propertyInfo);
         }
-        
+
+        public static NullabilityInfo? IsNullable(this FieldInfo fieldInfo)
+        {
+            if (fieldInfo is null)
+            {
+                return null;
+            }
+            var context = new NullabilityInfoContext();
+            return context.Create(fieldInfo);
+        }
+
+        public static IEnumerable<NullabilityInfo> GetGenericArguments(this NullabilityInfo? info)
+        {
+            if (info is null)
+            {
+                return new List<NullabilityInfo>();
+            }
+
+            return info.GenericTypeArguments;
+        }
+
         /// <summary>
         /// Maps an enumerable to an enumerable of the elements' type names
         /// </summary>

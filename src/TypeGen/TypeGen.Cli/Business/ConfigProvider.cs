@@ -4,12 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using TypeGen.Cli.Models;
 using TypeGen.Core.Logging;
 using TypeGen.Core.Utils;
 using TypeGen.Core.Storage;
 using TypeGen.Core.Validation;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using System.Text.Json.Serialization;
 
 namespace TypeGen.Cli.Business
 {
@@ -17,12 +19,25 @@ namespace TypeGen.Cli.Business
     {
         private readonly IFileSystem _fileSystem;
         private readonly ILogger _logger;
+        private readonly JsonSerializerOptions _serializerOptions;
 
         public ConfigProvider(IFileSystem fileSystem,
             ILogger logger)
         {
             _fileSystem = fileSystem;
             _logger = logger;
+            _serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.General)
+            {
+                AllowTrailingCommas = true,
+                Converters =
+                {
+                    new JsonStringEnumConverter(namingPolicy: JsonNamingPolicy.CamelCase)
+                },
+                DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString,
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
         }
 
         /// <summary>
@@ -51,7 +66,7 @@ namespace TypeGen.Cli.Business
             _logger.Log($"Reading the config file from \"{configPath}\"", LogLevel.Debug);
 
             string tgConfigJson = _fileSystem.ReadFile(configPath);
-            TgConfig config = JsonConvert.DeserializeObject<TgConfig>(tgConfigJson)
+            TgConfig config = JsonSerializer.Deserialize<TgConfig>(tgConfigJson, _serializerOptions)
                 .MergeWithDefaultParams()
                 .Normalize();
 
